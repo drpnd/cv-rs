@@ -1,4 +1,5 @@
 extern crate gcc;
+extern crate pkg_config;
 
 #[cfg(windows)]
 fn opencv_include() -> String {
@@ -48,8 +49,14 @@ fn opencv_include() -> &'static str {
 }
 
 #[cfg(unix)]
+fn opencv_include2() -> &'static str {
+    "/opt/local/include"
+}
+
+#[cfg(unix)]
 fn opencv_link() {
     println!("cargo:rustc-link-search=native=/usr/local/lib");
+    println!("cargo:rustc-link-search=native=/opt/local/lib");
     println!("cargo:rustc-link-lib=opencv_core");
     println!("cargo:rustc-link-lib=opencv_imgcodecs");
     println!("cargo:rustc-link-lib=opencv_imgproc");
@@ -65,12 +72,17 @@ fn opencv_link() {
 }
 
 fn main() {
+    let cvlib = pkg_config::Config::new().atleast_version("3.0").probe("opencv").unwrap();
     let mut opencv_config = gcc::Build::new();
+    for i in &cvlib.include_paths {
+        opencv_config.include(i);
+    }
     opencv_config
         .cpp(true)
         .file("native/opencv-wrapper.cc")
         .file("native/utils.cc")
         .include("native")
+        .include(opencv_include2())
         .include(opencv_include());
 
     if cfg!(not(target_env = "msvc")) {
